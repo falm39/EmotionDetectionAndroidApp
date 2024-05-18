@@ -79,5 +79,4 @@ public class ImageUtil {
 
         return buffer;
     }
-
 }

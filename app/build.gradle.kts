@@ -44,6 +44,8 @@ dependencies {
     implementation ("org.tensorflow:tensorflow-lite-support:0.4.4")
 
 
+    implementation ("com.google.android.material:material:1.3.0")
+    implementation ("androidx.recyclerview:recyclerview:1.2.1")
 
 
     testImplementation(libs.junit)

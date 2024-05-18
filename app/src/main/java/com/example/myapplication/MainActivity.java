@@ -1,27 +1,22 @@
 package com.example.myapplication;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.graphics.SurfaceTexture;
+import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.TextureView;
-import android.widget.TextView;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import org.tensorflow.lite.Interpreter;
-import java.io.IOException;
+import android.view.TextureView;
 import java.nio.ByteBuffer;
-import java.io.InputStream;
 import java.nio.ByteOrder;
-import android.content.res.AssetManager;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
-    private TextView emotionText;
+    private static final String TAG = "MainActivity";
+    private CameraHelper cameraHelper;
     private Interpreter interpreter;
     private TextureView textureView;
 
@@ -30,56 +25,51 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
-        }
-
-        emotionText = findViewById(R.id.emotion_text);
         textureView = findViewById(R.id.texture_view);
+        cameraHelper = CameraHelper.getInstance(this);
 
-        textureView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            @Override
-            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                initializeInterpreter();
-                initializeCamera();
-            }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {}
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                return false;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {}
-        });
-    }
-
-    private void initializeInterpreter() {
+        // TensorFlow Lite model dosyasını yüklemek için gerekli işlemleri gerçekleştirin
         try {
             interpreter = new Interpreter(loadModelFile());
-            Log.d("TFLite", "TensorFlow Lite modeli başarıyla yüklendi.");
+            cameraHelper.setInterpreterAndTextureView(interpreter, textureView);
         } catch (IOException e) {
-            Log.e("Interpreter Error", "Model yüklenirken hata oluştu", e);
-            interpreter = null;
+            Log.e(TAG, "Model dosyası yüklenirken hata oluştu", e);
+        }
+
+        final BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+        bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
+            Fragment selectedFragment = null;
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_camera) {
+                selectedFragment = new CameraFragment();
+                Log.d(TAG, "Camera fragment selected");
+            } else if (itemId == R.id.nav_history) {
+                selectedFragment = new HistoryFragment();
+                Log.d(TAG, "History fragment selected");
+            }
+            if (selectedFragment != null) {
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, selectedFragment)
+                        .commit();
+            }
+            return true;
+        });
+
+        // Varsayılan olarak CameraFragment'i göster
+        if (savedInstanceState == null) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_camera);
         }
     }
 
-    private void initializeCamera() {
-        if (interpreter != null) {
-            CameraHelper cameraHelper = new CameraHelper(this, interpreter, textureView);
-            cameraHelper.setFrameCallback(emotion -> runOnUiThread(() -> {
-                emotionText.setText("Tespit edilen duygu: " + emotion);
-            }));
-            cameraHelper.openCamera();
-        } else {
-            Log.e("Interpreter Error", "Interpreter nesnesi null");
-        }
+    public CameraHelper getCameraHelper() {
+        return cameraHelper;
     }
 
-    @NonNull
+    public Interpreter getInterpreter() {
+        return interpreter;
+    }
+
+    // TensorFlow Lite model dosyasını yüklemek için bir yöntem ekleyin
     private ByteBuffer loadModelFile() throws IOException {
         AssetManager assetManager = getAssets();
         InputStream inputStream = assetManager.open("fer13.96px.tflite");
@@ -92,28 +82,5 @@ public class MainActivity extends AppCompatActivity {
         buffer.order(ByteOrder.nativeOrder());
         buffer.put(modelBytes);
         return buffer;
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (textureView.isAvailable()) {
-                    initializeInterpreter();
-                    initializeCamera();
-                }
-            } else {
-                Log.e("Camera", "Kamera izni reddedildi.");
-            }
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (interpreter != null) {
-            interpreter.close();
-        }
     }
 }
