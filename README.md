@@ -5,9 +5,13 @@ Bu proje, gerçek zamanlı olarak yüz ifadelerini tespit eden bir Android uygul
 Özellikler
 
 Gerçek zamanlı yüz ifadesi tespiti
+
 Kullanıcı dostu arayüz
+
 TensorFlow Lite entegrasyonu
-Kullanılan Teknolojiler
+
+**Kullanılan Teknolojiler**
+
 Android Studio
 TensorFlow Lite
 OpenCV
