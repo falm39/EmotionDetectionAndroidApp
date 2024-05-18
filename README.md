@@ -11,7 +11,8 @@ Kullanılan Teknolojiler
 Android Studio
 TensorFlow Lite
 OpenCV
-Gereksinimler
+
+**Gereksinimler**
 
 Android Studio 4.0 veya daha üstü
 Minimum Android SDK 21
