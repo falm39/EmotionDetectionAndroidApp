@@ -1,7 +1,6 @@
 package com.example.myapplication;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,10 +13,9 @@ import java.util.List;
 
 public class HistoryFragment extends Fragment {
 
+    private CameraHelper cameraHelper;
     private RecyclerView recyclerView;
     private EmotionAdapter adapter;
-    private CameraHelper cameraHelper;
-    private static final String TAG = "HistoryFragment";
 
     @Nullable
     @Override
@@ -26,24 +24,14 @@ public class HistoryFragment extends Fragment {
         recyclerView = view.findViewById(R.id.recycler_view);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        // Duygu geçmişini alma
+        // CameraHelper örneğini alın
         cameraHelper = CameraHelper.getInstance(getContext());
         List<EmotionRecord> emotionHistory = cameraHelper.getEmotionHistory();
 
-        Log.d(TAG, "onCreateView: " + emotionHistory.size() + " records found.");
-
+        // Adapter'i ayarlayın
         adapter = new EmotionAdapter(emotionHistory);
         recyclerView.setAdapter(adapter);
 
         return view;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        // Verilerin güncellenmesini sağla
-        if (adapter != null) {
-            adapter.notifyDataSetChanged();
-        }
     }
 }

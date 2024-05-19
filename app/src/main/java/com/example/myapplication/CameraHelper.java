@@ -23,18 +23,18 @@ import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.tensorflow.lite.Interpreter;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.tensorflow.lite.Interpreter;
 
 public class CameraHelper {
 
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 1001;
-    private static final String TAG = "CameraHelper";
-    private static CameraHelper instance;
 
+    private static CameraHelper instance;
     private final Context context;
     private CameraDevice cameraDevice;
     private CameraCaptureSession cameraCaptureSession;
@@ -42,18 +42,28 @@ public class CameraHelper {
     private FrameCallback frameCallback;
     private Interpreter interpreter;
     private TextureView textureView;
-    private List<EmotionRecord> emotionHistory;
+    private List<EmotionRecord> emotionHistory = new ArrayList<>();
 
-    private CameraHelper(Context context) {
-        this.context = context.getApplicationContext();
-        this.emotionHistory = new ArrayList<>();
-    }
-
-    public static synchronized CameraHelper getInstance(Context context) {
+    public static CameraHelper getInstance(Context context, Interpreter interpreter, TextureView textureView) {
         if (instance == null) {
-            instance = new CameraHelper(context);
+            instance = new CameraHelper(context, interpreter, textureView);
+        } else {
+            instance.setInterpreterAndTextureView(interpreter, textureView);
         }
         return instance;
+    }
+
+    public static CameraHelper getInstance(Context context) {
+        if (instance == null) {
+            throw new IllegalStateException("CameraHelper has not been initialized, call getInstance(Context, Interpreter, TextureView) first.");
+        }
+        return instance;
+    }
+
+    private CameraHelper(Context context, Interpreter interpreter, TextureView textureView) {
+        this.context = context;
+        this.interpreter = interpreter;
+        this.textureView = textureView;
     }
 
     public void setInterpreterAndTextureView(Interpreter interpreter, TextureView textureView) {
@@ -70,8 +80,7 @@ public class CameraHelper {
     }
 
     public void openCamera() {
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
-                == PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
             CameraManager cameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
             try {
                 String cameraId = cameraManager.getCameraIdList()[0];
@@ -81,14 +90,16 @@ public class CameraHelper {
                 Size[] outputSizes = map.getOutputSizes(SurfaceTexture.class);
                 Size size = outputSizes[0];
 
-                imageReader = ImageReader.newInstance(size.getWidth(), size.getHeight(), ImageFormat.YUV_420_888, 2);
-                imageReader.setOnImageAvailableListener(reader -> {
-                    Image image = reader.acquireLatestImage();
-                    if (image != null) {
-                        processImage(image);
-                        image.close();
-                    }
-                }, null);
+                if (imageReader == null) {
+                    imageReader = ImageReader.newInstance(size.getWidth(), size.getHeight(), ImageFormat.YUV_420_888, 2);
+                    imageReader.setOnImageAvailableListener(reader -> {
+                        Image image = reader.acquireLatestImage();
+                        if (image != null) {
+                            processImage(image);
+                            image.close();
+                        }
+                    }, null);
+                }
 
                 cameraManager.openCamera(cameraId, new CameraDevice.StateCallback() {
                     @Override
@@ -111,14 +122,17 @@ public class CameraHelper {
                 e.printStackTrace();
             }
         } else {
-            ActivityCompat.requestPermissions((Activity) context, new String[]{android.Manifest.permission.CAMERA},
-                    CAMERA_PERMISSION_REQUEST_CODE);
+            ActivityCompat.requestPermissions((Activity) context, new String[]{android.Manifest.permission.CAMERA}, CAMERA_PERMISSION_REQUEST_CODE);
         }
     }
 
     private void createCameraPreviewSession() {
         try {
             SurfaceTexture texture = textureView.getSurfaceTexture();
+            if (texture == null || imageReader == null) {
+                Log.e("CameraHelper", "Texture or ImageReader is null, cannot create camera preview session");
+                return;
+            }
             texture.setDefaultBufferSize(imageReader.getWidth(), imageReader.getHeight());
             Surface surface = new Surface(texture);
 
@@ -143,7 +157,7 @@ public class CameraHelper {
 
                 @Override
                 public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-                    Log.e(TAG, "Kamera önizleme oturumu yapılandırılamadı.");
+                    Log.e("CameraHelper", "Kamera önizleme oturumu yapılandırılamadı.");
                 }
             }, null);
         } catch (CameraAccessException e) {
@@ -166,31 +180,25 @@ public class CameraHelper {
         }
     }
 
-    public List<EmotionRecord> getEmotionHistory() {
-        Log.d(TAG, "getEmotionHistory: " + emotionHistory.size() + " records found.");
-        return emotionHistory;
-    }
-
     private void processImage(Image image) {
-        Log.d(TAG, "Görüntü işleme başladı.");
+        Log.d("processImage", "Görüntü işleme başladı.");
 
         Bitmap bitmap = ImageUtil.imageToBitmap(image, context);
         if (bitmap != null) {
-            Log.d(TAG, "Bitmap oluşturuldu: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+            Log.d("processImage", "Bitmap oluşturuldu: " + bitmap.getWidth() + "x" + bitmap.getHeight());
 
-            // Bitmap'i doğru boyutlandırdığınızdan emin olun
             Bitmap resizedBitmap = ImageUtil.resizeBitmap(bitmap, ImageUtil.INPUT_IMAGE_WIDTH, ImageUtil.INPUT_IMAGE_HEIGHT);
-            Log.d(TAG, "Bitmap yeniden boyutlandırıldı: " + resizedBitmap.getWidth() + "x" + resizedBitmap.getHeight());
+            Log.d("processImage", "Bitmap yeniden boyutlandırıldı: " + resizedBitmap.getWidth() + "x" + resizedBitmap.getHeight());
 
             ByteBuffer inputBuffer = ImageUtil.bitmapToByteBuffer(resizedBitmap, ImageUtil.INPUT_IMAGE_WIDTH, ImageUtil.INPUT_IMAGE_HEIGHT);
-            Log.d(TAG, "ByteBuffer oluşturuldu. Boyut: " + inputBuffer.capacity());
+            Log.d("processImage", "ByteBuffer oluşturuldu. Boyut: " + inputBuffer.capacity());
 
             inputBuffer.rewind();
             float[][] outputScores = new float[1][ImageUtil.NUM_CLASSES];
 
             if (interpreter != null) {
                 interpreter.run(inputBuffer, outputScores);
-                Log.d(TAG, "Model çalıştırıldı. Çıktılar: " + Arrays.toString(outputScores[0]));
+                Log.d("processImage", "Model çalıştırıldı. Çıktılar: " + Arrays.toString(outputScores[0]));
 
                 int maxIndex = 0;
                 for (int i = 1; i < ImageUtil.NUM_CLASSES; i++) {
@@ -200,20 +208,18 @@ public class CameraHelper {
                 }
 
                 String emotion = getEmotionLabel(maxIndex);
-                Log.d(TAG, "Tespit edilen duygu: " + emotion);
+                Log.d("processImage", "Tespit edilen duygu: " + emotion);
 
-                // Geçmiş duygulara ekleyin
                 emotionHistory.add(new EmotionRecord(emotion, System.currentTimeMillis()));
-                Log.d(TAG, "Duygu geçmişine eklendi: " + emotion);
 
                 if (frameCallback != null) {
                     frameCallback.onFrameProcessed(emotion);
                 }
             } else {
-                Log.e(TAG, "Interpreter nesnesi null");
+                Log.e("Interpreter Error", "Interpreter nesnesi null");
             }
         } else {
-            Log.e(TAG, "Bitmap oluşturulamadı.");
+            Log.e("CameraHelper", "Bitmap oluşturulamadı.");
         }
     }
 
@@ -228,5 +234,9 @@ public class CameraHelper {
             case 6: return "Şaşırmış";
             default: return "Bilinmeyen";
         }
+    }
+
+    public List<EmotionRecord> getEmotionHistory() {
+        return new ArrayList<>(emotionHistory);
     }
 }

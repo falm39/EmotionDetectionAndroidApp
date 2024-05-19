@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Mutlu için URL ayarı -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Mutlu İçin URL" />
+
+    <EditText
+        android:id="@+id/happy_url"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Mutlu için URL girin" />
+
+    <!-- Mutsuz için URL ayarı -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Mutsuz İçin URL" />
+
+    <EditText
+        android:id="@+id/sad_url"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Mutsuz için URL girin" />
+
+    <!-- Diğer duygular için de benzer ayarlar ekleyin -->
+
+    <Button
+        android:id="@+id/save_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Kaydet" />
+</LinearLayout>

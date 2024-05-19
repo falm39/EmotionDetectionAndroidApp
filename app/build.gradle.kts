@@ -46,6 +46,7 @@ dependencies {
 
     implementation ("com.google.android.material:material:1.3.0")
     implementation ("androidx.recyclerview:recyclerview:1.2.1")
+    implementation(libs.preference)
 
 
     testImplementation(libs.junit)

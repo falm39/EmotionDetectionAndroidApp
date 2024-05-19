@@ -1,0 +1,16 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <EditTextPreference
+        android:key="happy_url"
+        android:title="Mutlu URL"
+        android:inputType="textUri" />
+
+    <EditTextPreference
+        android:key="sad_url"
+        android:title="Üzgün URL"
+        android:inputType="textUri" />
+
+    <EditTextPreference
+        android:key="interval_minutes"
+        android:title="Kontrol Süresi (dakika)"
+        android:inputType="number" />
+</PreferenceScreen>
